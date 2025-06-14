@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login - Smart Repellent System</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #f4f6f9;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .login-box {
+      background: white;
+      border-radius: 12px;
+      padding: 3rem;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+      box-sizing: border-box;
+      text-align: center;
+    }
+    .login-box img {
+      width: 230px;
+      height: auto;
+      margin-bottom: 1rem;
+    }
+    h2 {
+      background: linear-gradient(to right, #6a00f4, #c400ff, #ff0080, #ff8c00, #ffe600);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 1.5rem;
+    }
+    input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 0.8rem;
+      margin: 0.5rem 0;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    .password-wrapper {
+      position: relative;
+      margin: 0.5rem 0;
+    }
+    .password-wrapper input {
+      width: 100%;
+      padding: 0.8rem;
+      padding-right: 3rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    .toggle-password {
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #888;
+      user-select: none;
+    }
+    .remember {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+    .remember input {
+      margin-right: 0.5rem;
+    }
+    button {
+      width: 100%;
+      padding: 0.8rem;
+      margin-top: 1rem;
+      background: linear-gradient(to right, #6a00f4, #ff0080, #ffe600);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .error {
+      color: red;
+      font-size: 0.9rem;
+      text-align: center;
+      margin-top: 0.5rem;
+    }
+    .footer {
+      text-align: center;
+      font-size: 0.85rem;
+      margin-top: 1.5rem;
+    }
+    .footer a {
+      color: #6a00f4;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-box">
+    <img src="images/login.png" alt="Login Icon">
+    <h2>Login to Smart System</h2>
+    <input type="email" id="email" placeholder="Email">
+    <div class="password-wrapper">
+      <input type="password" id="password" placeholder="Password">
+      <span class="toggle-password" onclick="togglePassword()">Show</span>
+    </div>
+    <div class="remember">
+      <input type="checkbox" id="rememberMe">
+      <label for="rememberMe">Remember me</label>
+    </div>
+    <button onclick="login()">Login</button>
+    <div class="error" id="error"></div>
+    <div class="footer">
+      Don't have an account? <a href="register.html">Register here</a>
+    </div>
+  </div>
+
+  <script>
+
+    function togglePassword() {
+      const password = document.getElementById("password");
+      const toggle = document.querySelector(".toggle-password");
+      if (password.type === "password") {
+        password.type = "text";
+        toggle.textContent = "Hide";
+      } else {
+        password.type = "password";
+        toggle.textContent = "Show";
+      }
+    }
+
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      const errorBox = document.getElementById("error");
+      const rememberMe = document.getElementById("rememberMe").checked;
+
+      firebase.auth().setPersistence(
+        rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION
+      ).then(() => {
+        return firebase.auth().signInWithEmailAndPassword(email, password);
+      }).then(() => {
+        window.location.href = "dashboard.html";
+      }).catch(error => {
+        errorBox.textContent = error.message;
+      });
+    }
+  </script>
+</body>
+</html>

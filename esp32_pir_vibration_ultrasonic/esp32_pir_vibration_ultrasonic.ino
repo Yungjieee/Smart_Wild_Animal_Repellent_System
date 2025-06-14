@@ -6,11 +6,11 @@
 
 // WiFi credentials
 #define WIFI_SSID "Abby's"
-#define WIFI_PASSWORD ""
+#define WIFI_PASSWORD "030427020738"
 
 // Firebase credentials
-#define API_KEY " "
-#define DATABASE_URL " "
+#define API_KEY "AIzaSyBkC4ati0WYRzVGfOFXhA86y-_BhMFBYuw"
+#define DATABASE_URL "https://esp-firebase-demo-2276c-default-rtdb.asia-southeast1.firebasedatabase.app/"
 
 // Firebase objects
 FirebaseData fbdo;
@@ -70,6 +70,25 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 void setup() {
   Serial.begin(115200);
 
+  // OLED
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    Serial.println("OLED init failed");
+    while (true)
+      ;
+  }
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println("Starting system...");
+  display.display();
+
+  // WiFi Connection
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Connecting WiFi...");
+  display.display();
+
   // Connect to WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to WiFi");
@@ -79,11 +98,20 @@ void setup() {
   }
   Serial.println("\nConnected to WiFi");
 
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("WiFi Connected!");
+  display.display();
+  delay(1000);
+
+  configTime(28800, 0, "pool.ntp.org", "time.nist.gov");  // 28800 = 8*3600 for Malaysia time
+
+
   // Firebase config
   config.api_key = API_KEY;
   config.database_url = DATABASE_URL;
   auth.user.email = "yungjielee@gmail.com";
-  auth.user.password = " ";
+  auth.user.password = "Asdfg12345";
 
   Firebase.begin(&config, &auth);
   Firebase.reconnectWiFi(true);
@@ -93,15 +121,30 @@ void setup() {
     Serial.print(".");
     delay(500);
   }
-  Serial.println("\nFirebase Ready!");
+  Serial.println("Firebase Ready!");
+
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("Firebase Ready!");
+  display.display();
+  delay(1000);
 
 
   // PIR setup
   pinMode(PIR_SENSOR_OUTPUT_PIN, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(PIR_SENSOR_OUTPUT_PIN), pirISR, RISING);
   Serial.println("PIR Sensor warming up...");
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("PIR Warming Up...");
+  display.display();
   delay(20000);  // Warm-up time for PIR
   Serial.println("PIR Ready!");
+  display.clearDisplay();
+  display.setCursor(0, 0);
+  display.println("PIR Ready!");
+  display.display();
+  delay(1000);
 
   // Ultrasonic setup
   pinMode(trigPin, OUTPUT);
@@ -119,17 +162,12 @@ void setup() {
   pinMode(relayPin, OUTPUT);
   digitalWrite(relayPin, LOW);
 
-  // OLED
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-    Serial.println("OLED init failed");
-    while (true)
-      ;
-  }
+  // Final system ready message
   display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(SSD1306_WHITE);
-
-
+  display.setCursor(0, 0);
+  display.println("System Ready!");
+  display.display();
+  delay(1500);
 }
 
 void loop() {
@@ -186,17 +224,43 @@ void loop() {
   Serial.println("%");
 
   // === Relay ===
+
+  // Manual turn on or off relay
+  bool manualMode = false;
+  bool manualRelay = false;
+
+  if (Firebase.RTDB.getBool(&fbdo, "/wildRepellentSystem/manualMode")) {
+    manualMode = fbdo.boolData();
+  }
+
+  if (Firebase.RTDB.getBool(&fbdo, "/wildRepellentSystem/relay")) {
+    manualRelay = fbdo.boolData();
+  }
+
   bool triggerCondition = distanceCm < 50 || vibrationDetected || (currentMillis - lastMotionTime < motionTimeout);
 
-  if (triggerCondition) {
-    digitalWrite(relayPin, HIGH);
-    relayOn = true;
-    relayTriggeredTime = currentMillis;
+  if (manualMode) {
+    // Manual control
+    digitalWrite(relayPin, manualRelay ? HIGH : LOW);
+    relayOn = manualRelay;
+    Serial.println(manualRelay ? "Relay ON (Manual)" : "Relay OFF (Manual)");
 
-  } else if (relayOn && (currentMillis - relayTriggeredTime > relayHoldDuration)) {
-    digitalWrite(relayPin, LOW);
-    relayOn = false;
+  } else {
+    // Automatic trigger
+
+    if (triggerCondition) {
+      digitalWrite(relayPin, HIGH);
+      relayOn = true;
+      relayTriggeredTime = currentMillis;
+      Serial.println("Relay turn on");
+
+    } else if (relayOn && (currentMillis - relayTriggeredTime > relayHoldDuration)) {
+      digitalWrite(relayPin, LOW);
+      relayOn = false;
+      Serial.println("Relay turn off");
+    }
   }
+
 
 
   // === OLED Display ===
@@ -236,11 +300,30 @@ void loop() {
   Firebase.RTDB.setFloat(&fbdo, "/wildRepellentSystem/distance", distanceCm);
   Firebase.RTDB.setBool(&fbdo, "/wildRepellentSystem/motion", (currentMillis - lastMotionTime < motionTimeout));
   Firebase.RTDB.setBool(&fbdo, "/wildRepellentSystem/vibration", vibrationDetected);
-  Firebase.RTDB.setBool(&fbdo, "/wildRepellentSystem/relay", relayOn);
+  if (!manualMode) {
+    Firebase.RTDB.setBool(&fbdo, "/wildRepellentSystem/relay", relayOn);
+  }
+  Firebase.RTDB.setString(&fbdo, "/wildRepellentSystem/modeStatus", manualMode ? "Manual" : "Auto");
+  Firebase.RTDB.setString(&fbdo, "/wildRepellentSystem/status", triggerCondition ? "Alert! Animal is detected by the sensor!" : "Safe. No Animal is detected.");
+
+  String timestamp = getFormattedTime();
+  Firebase.RTDB.setString(&fbdo, "/wildRepellentSystem/timestamp", timestamp);
 
   delay(2000);  // Short delay for fast loop
 }
 
 void pirISR() {
   motionDetected = true;
+}
+
+String getFormattedTime() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return "";
+  }
+
+  char timeStr[30];
+  strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
+  return String(timeStr);
 }

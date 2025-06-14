@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Control Panel - Smart Repellent System</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="firebase-config.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', sans-serif;
+            background: #f4f6f9;
+            color: #333;
+        }
+
+        nav {
+            background: linear-gradient(to right, #6a00f4, #c400ff, #ff0080, #ff8c00, #ffe600);
+            padding: 0.1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            margin-left: 1rem;
+            font-weight: bold;
+        }
+
+        .logout-button {
+            background: transparent;
+            border: 1px solid white;
+            border-radius: 6px;
+            padding: 0.4rem 0.8rem;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h1 {
+            background: linear-gradient(to right, #6a00f4, #c400ff, #ff0080, #ff8c00, #ffe600);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        select,
+        button {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1rem;
+            margin: 1rem 0;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            background: linear-gradient(to right, #6a00f4, #ff0080, #ffe600);
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        .status {
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+
+        #manualControls button {
+            background: linear-gradient(to right, #6a00f4, #ff0080, #ffe600);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        #manualControls button:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        #manualControls button:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <div style="font-weight: bold;">Smart Repellent System</div>
+        <div style="display: flex; align-items: center; gap: 1rem; white-space: nowrap;">
+            <a href="dashboard.html">Dashboard</a>
+            <a href="control.html">Control Panel</a>
+            <button class="logout-button" onclick="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>Relay Mode Control</h1>
+        <label for="modeSelect">Select Mode:</label>
+        <select id="modeSelect" onchange="updateMode()">
+            <option value="auto">Auto</option>
+            <option value="manual">Manual</option>
+        </select>
+
+        <div id="manualControls" style="display:none;">
+            <p>Toggle the relay manually:</p>
+            <button onclick="setRelay(true)">Turn Relay ON</button>
+            <button onclick="setRelay(false)">Turn Relay OFF</button>
+        </div>
+
+        <div class="status">Current Relay Status: <span id="relayStatus">--</span></div>
+    </div>
+
+    <script>
+
+        const db = firebase.database();
+        const ref = db.ref("/wildRepellentSystem");
+
+        function setRelay(state) {
+            db.ref("/wildRepellentSystem/relay").set(state);
+        }
+
+        function updateMode() {
+            const selected = document.getElementById("modeSelect").value;
+            const isManual = selected === "manual";
+            db.ref("/wildRepellentSystem/manualMode").set(isManual);
+            document.getElementById("manualControls").style.display = isManual ? "block" : "none";
+        }
+
+        function logout() {
+            firebase.auth().signOut().then(() => {
+                window.location.href = "login.html";
+            }).catch((error) => {
+                alert("Logout failed: " + error.message);
+            });
+        }
+
+        ref.on("value", (snapshot) => {
+            const data = snapshot.val();
+            const relay = data.relay ? "ON" : "OFF";
+            document.getElementById("relayStatus").textContent = relay;
+
+            const modeSelect = document.getElementById("modeSelect");
+            if (data.manualMode) {
+                modeSelect.value = "manual";
+                document.getElementById("manualControls").style.display = "block";
+            } else {
+                modeSelect.value = "auto";
+                document.getElementById("manualControls").style.display = "none";
+            }
+        });
+    </script>
+</body>
+
+</html>
