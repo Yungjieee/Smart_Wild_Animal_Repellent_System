@@ -10,6 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 
   <script src="firebase-config.js"></script>
+  <script src="auth.js"></script>
   <style>
     body {
       margin: 0;
@@ -216,13 +217,6 @@
       document.getElementById("duration").textContent = data.vibrationDuration ?? '--';
     });
 
-    function logout() {
-      firebase.auth().signOut().then(() => {
-        window.location.href = "login.html";
-      }).catch((error) => {
-        alert("Logout failed: " + error.message);
-      });
-    }
   </script>
 
   <!-- Settings Dialog -->
