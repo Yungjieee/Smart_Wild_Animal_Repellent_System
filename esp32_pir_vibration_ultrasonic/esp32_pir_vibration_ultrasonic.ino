@@ -3,14 +3,19 @@
 #include <DHT.h>
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h>
+#include <HTTPClient.h>
+
+// // mysql
+unsigned long lastHttpSendTime = 0;
+const unsigned long httpInterval = 10000;  // 10 seconds
 
 // WiFi credentials
 #define WIFI_SSID "Abby's"
-#define WIFI_PASSWORD "030427020738"
+#define WIFI_PASSWORD ""
 
 // Firebase credentials
-#define API_KEY "AIzaSyBkC4ati0WYRzVGfOFXhA86y-_BhMFBYuw"
-#define DATABASE_URL "https://esp-firebase-demo-2276c-default-rtdb.asia-southeast1.firebasedatabase.app/"
+#define API_KEY ""
+#define DATABASE_URL ""
 
 // Firebase objects
 FirebaseData fbdo;
@@ -29,6 +34,7 @@ const int echoPin = 5;
 // ultrasonic variable
 long duration;
 float distanceCm;
+float distanceThreshold = 50.0;  // default fallback
 
 // PIR Sensor
 const int PIR_SENSOR_OUTPUT_PIN = 13;
@@ -44,6 +50,9 @@ const int vibrationPin = 25;
 bool vibrationDetected = false;
 unsigned long lastVibrationTime = 0;
 const unsigned long vibrationHoldTime = 5000;  // 5 second
+unsigned long vibrationStartTime = 0;
+const unsigned long vibrationCooldown = 5000;  // 5 seconds
+bool vibrationDurationReset = false;
 
 // DHT11
 #define DHTPIN 4
@@ -57,15 +66,13 @@ float humidity;
 const int relayPin = 17;
 bool relayOn = false;
 unsigned long relayTriggeredTime = 0;
-const unsigned long relayHoldDuration = 3000;  // Relay stays on at least 5 seconds
-
+const unsigned long relayHoldDuration = 5000;  // Relay stays on at least 5 seconds
 
 // OLED Display
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 32
 #define OLED_RESET -1
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
 
 void setup() {
   Serial.begin(115200);
@@ -83,12 +90,6 @@ void setup() {
   display.println("Starting system...");
   display.display();
 
-  // WiFi Connection
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.println("Connecting WiFi...");
-  display.display();
-
   // Connect to WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Connecting to WiFi");
@@ -98,14 +99,7 @@ void setup() {
   }
   Serial.println("\nConnected to WiFi");
 
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.println("WiFi Connected!");
-  display.display();
-  delay(1000);
-
   configTime(28800, 0, "pool.ntp.org", "time.nist.gov");  // 28800 = 8*3600 for Malaysia time
-
 
   // Firebase config
   config.api_key = API_KEY;
@@ -122,13 +116,6 @@ void setup() {
     delay(500);
   }
   Serial.println("Firebase Ready!");
-
-  display.clearDisplay();
-  display.setCursor(0, 0);
-  display.println("Firebase Ready!");
-  display.display();
-  delay(1000);
-
 
   // PIR setup
   pinMode(PIR_SENSOR_OUTPUT_PIN, INPUT_PULLUP);
@@ -203,15 +190,41 @@ void loop() {
   bool vibState = digitalRead(vibrationPin);
   if (vibState == HIGH) {
     if (!vibrationDetected) {
-      Serial.println("Detected vibration...");
       vibrationDetected = true;
+      vibrationStartTime = currentMillis;
+      Serial.println("Detected vibration...");
     }
     lastVibrationTime = currentMillis;
   }
   if (vibrationDetected && currentMillis - lastVibrationTime > vibrationHoldTime) {
     Serial.println("No vibration detected.");
     vibrationDetected = false;
+    vibrationDurationReset = false;  // Reset flag so cooldown can begin
   }
+
+  // Track vibration duration
+  int vibrationDuration = 0;
+  if (vibrationDetected) {
+    vibrationDuration = (currentMillis - vibrationStartTime) / 1000;  // seconds
+    Serial.print("Vibration active for ");
+    Serial.print(vibrationDuration);
+    Serial.println(" seconds");
+  }
+
+  // === Vibration Duration Cooldown Reset ===
+  static unsigned long vibrationCooldownStart = 0;
+  if (!vibrationDetected && !vibrationDurationReset) {
+    vibrationCooldownStart = currentMillis;
+    vibrationDurationReset = true;
+  }
+
+  if (vibrationDurationReset && (currentMillis - vibrationCooldownStart >= vibrationCooldown)) {
+    vibrationDuration = 0;
+    Firebase.RTDB.setInt(&fbdo, "/wildRepellentSystem/vibrationDuration", vibrationDuration);
+    Serial.println("Vibration duration reset after cooldown.");
+    vibrationDurationReset = false;
+  }
+
 
   // === DHT11 ===
   humidity = dht.readHumidity();
@@ -237,7 +250,63 @@ void loop() {
     manualRelay = fbdo.boolData();
   }
 
-  bool triggerCondition = distanceCm < 50 || vibrationDetected || (currentMillis - lastMotionTime < motionTimeout);
+  // Read distance threshold from Firebase
+  if (Firebase.RTDB.getFloat(&fbdo, "/wildRepellentSystem/distanceThreshold")) {
+    distanceThreshold = fbdo.floatData();
+
+    // Optional: limit to prevent weird inputs
+    if (distanceThreshold < 10 || distanceThreshold > 300) {
+      distanceThreshold = 50.0;
+    }
+  } else {
+    distanceThreshold = 50.0;  // fallback default
+  }
+  Serial.print("Distance Threshold: ");
+  Serial.println(distanceThreshold);
+
+  String statusMessage = "Safe.";
+  bool triggerCondition = false;
+
+  bool motionActive = (currentMillis - lastMotionTime < motionTimeout);
+  bool distanceClose = (distanceCm <= distanceThreshold);
+
+  // 1. Vibration only ≥ 3 seconds
+  if (vibrationDetected && vibrationDuration >= 3 && !motionActive && !distanceClose) {
+    statusMessage = "Danger: Vibration detected!";
+    triggerCondition = true;
+  }
+  // 2. Motion only, distance > 50 cm
+  else if (motionActive && !vibrationDetected && !distanceClose) {
+    statusMessage = "Alert: Motion detected, but not near.";
+    triggerCondition = false;
+  }
+  // 3. Motion + distance < 50 cm (no vibration)
+  else if (motionActive && !vibrationDetected && distanceClose) {
+    statusMessage = "Danger: Animal approaching!";
+    triggerCondition = true;
+  }
+  // 4. Motion + vibration, distance > 50 cm
+  else if (motionActive && vibrationDetected && vibrationDuration >= 3 && !distanceClose) {
+    statusMessage = "Danger: Motion and vibration detected!";
+    triggerCondition = true;
+  }
+  // 5. Motion + vibration + distance < 50 cm
+  else if (motionActive && vibrationDetected && vibrationDuration >= 3 && distanceClose) {
+    statusMessage = "Danger: Animal confirmed!";
+    triggerCondition = true;
+  }
+  // 6. No motion, no vibration, distance > 50 cm
+  else if (!motionActive && !vibrationDetected && !distanceClose) {
+    statusMessage = "Safe: No activity.";
+    triggerCondition = false;
+  }
+  // 7. Only distance < 50 cm, no motion/vibration
+  else if (!motionActive && !vibrationDetected && distanceClose) {
+    statusMessage = "Alert: Object close, no movement.";
+    triggerCondition = false;
+  }
+  Serial.println(statusMessage);
+
 
   if (manualMode) {
     // Manual control
@@ -260,8 +329,6 @@ void loop() {
       Serial.println("Relay turn off");
     }
   }
-
-
 
   // === OLED Display ===
   display.clearDisplay();
@@ -288,9 +355,9 @@ void loop() {
   display.println(vibrationDetected ? "Yes" : "No ");
 
   if (triggerCondition) {
-    display.print("ALERT: Animal!");
+    display.print("STATUS: ALERT ANIMAL!");
   } else {
-    display.print("STATUS: Safe");
+    display.print("STATUS: Safe & Clear");
   }
   display.display();
 
@@ -300,16 +367,23 @@ void loop() {
   Firebase.RTDB.setFloat(&fbdo, "/wildRepellentSystem/distance", distanceCm);
   Firebase.RTDB.setBool(&fbdo, "/wildRepellentSystem/motion", (currentMillis - lastMotionTime < motionTimeout));
   Firebase.RTDB.setBool(&fbdo, "/wildRepellentSystem/vibration", vibrationDetected);
+  Firebase.RTDB.setInt(&fbdo, "/wildRepellentSystem/vibrationDuration", vibrationDuration);
   if (!manualMode) {
     Firebase.RTDB.setBool(&fbdo, "/wildRepellentSystem/relay", relayOn);
   }
   Firebase.RTDB.setString(&fbdo, "/wildRepellentSystem/modeStatus", manualMode ? "Manual" : "Auto");
-  Firebase.RTDB.setString(&fbdo, "/wildRepellentSystem/status", triggerCondition ? "Alert! Animal is detected by the sensor!" : "Safe. No Animal is detected.");
+  Firebase.RTDB.setString(&fbdo, "/wildRepellentSystem/status", statusMessage);
+  Firebase.RTDB.setFloat(&fbdo, "/wildRepellentSystem/distanceThreshold", distanceThreshold);
 
   String timestamp = getFormattedTime();
   Firebase.RTDB.setString(&fbdo, "/wildRepellentSystem/timestamp", timestamp);
 
-  delay(2000);  // Short delay for fast loop
+  if (millis() - lastHttpSendTime >= httpInterval) {
+    sendDataToMySQL(temperature, humidity, distanceCm, relayOn, vibrationDetected, motionActive, statusMessage, manualMode);
+    lastHttpSendTime = millis();
+  }
+
+  delay(2000);
 }
 
 void pirISR() {
@@ -326,4 +400,52 @@ String getFormattedTime() {
   char timeStr[30];
   strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", &timeinfo);
   return String(timeStr);
+}
+
+void sendDataToMySQL(float temperature, float humidity, float distanceCm, bool relayOn, bool vibrationDetected, bool motionActive, String statusMessage, bool manualMode) {
+  String serverName = "http://smartanimal.threelittlecar.com/insert_data.php";  // Replace with your real URL
+
+  String httpRequest = serverName + "?temperature=" + String(temperature, 2)
+                       + "&humidity=" + String(humidity, 2)
+                       + "&distance=" + String(distanceCm, 2)
+                       + "&relay=" + (relayOn ? "1" : "0")
+                       + "&vibration=" + (vibrationDetected ? "1" : "0")
+                       + "&motion=" + (motionActive ? "1" : "0")
+                       + "&status=" + urlencode(statusMessage)
+                       + "&mode=" + urlencode(manualMode ? "Manual" : "Auto");
+
+  HTTPClient http;
+  // Serial.println("HTTP GET: " + httpRequest);
+  http.begin(httpRequest);
+  int httpResponseCode = http.GET();
+  if (httpResponseCode > 0) {
+    Serial.print("HTTP Response (MySQL): ");
+    Serial.println(httpResponseCode);
+  } else {
+    Serial.print("HTTP GET Error: ");
+    Serial.println(httpResponseCode);
+  }
+  http.end();
+}
+
+String urlencode(String str) {
+  String encoded = "";
+  char c;
+  char code0;
+  char code1;
+  for (int i = 0; i < str.length(); i++) {
+    c = str.charAt(i);
+    if (isalnum(c)) {
+      encoded += c;
+    } else {
+      code1 = (c & 0xf) + '0';
+      if ((c & 0xf) > 9) code1 = (c & 0xf) - 10 + 'A';
+      code0 = ((c >> 4) & 0xf) + '0';
+      if (((c >> 4) & 0xf) > 9) code0 = ((c >> 4) & 0xf) - 10 + 'A';
+      encoded += '%';
+      encoded += code0;
+      encoded += code1;
+    }
+  }
+  return encoded;
 }

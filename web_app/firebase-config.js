@@ -1,8 +1,8 @@
 // firebase-config.js
 const firebaseConfig = {
-    apiKey: "api",
-    databaseURL: "url",
-    projectId: "id",
+    apiKey: "",
+    databaseURL: "",
+    projectId: "",
 };
 
 // Initialize Firebase if not already initialized

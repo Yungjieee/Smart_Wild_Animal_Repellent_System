@@ -1,0 +1,62 @@
+<nav>
+    <div class="nav-left">Smart Repellent System</div>
+    <div class="nav-right">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="control.html">Control Panel</a>
+        <a href="trend.html">Trend</a>
+        <a href="logout.html" class="logout-btn">Logout</a>
+    </div>
+</nav>
+
+<style>
+    nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.2rem 3rem;
+        /* increased top-bottom + side padding */
+        background: linear-gradient(to right, #6a00f4, #c400ff, #ff0080, #ff8c00, #ffe600);
+        color: white;
+        font-weight: bold;
+    }
+
+    .nav-left {
+        font-size: 1.3rem;
+    }
+
+    .nav-right a {
+        color: white;
+        text-decoration: none;
+        margin-left: 25px;
+        font-size: 1rem;
+    }
+
+    .logout-btn {
+        padding: 6px 14px;
+        border: 1.5px solid white;
+        border-radius: 6px;
+        transition: 0.3s;
+    }
+
+    .logout-btn:hover {
+        background-color: white;
+        color: #ff8c00;
+    }
+
+    @media (max-width: 600px) {
+        nav {
+            flex-direction: column;
+            align-items: flex-start;
+            padding: 1rem 1.5rem;
+        }
+
+        .nav-right {
+            margin-top: 10px;
+        }
+
+        .nav-right a {
+            display: inline-block;
+            margin: 5px 10px 0 0;
+        }
+    }
+</style>

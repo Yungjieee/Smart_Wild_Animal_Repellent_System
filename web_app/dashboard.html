@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smart Animal Repellent System</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+
+  <script src="firebase-config.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f6f9;
+      color: #333;
+    }
+
+    .container {
+      max-width: 950px;
+      margin: auto;
+      padding: 2rem;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .header img {
+      width: 280px;
+      height: auto;
+      display: block;
+      margin: 0 auto 1rem auto;
+    }
+
+    .header h1 {
+      background: linear-gradient(to right, #6a00f4, #c400ff, #ff0080, #ff8c00, #ffe600);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+
+    .grid-full {
+      display: grid;
+      grid-template-columns: 1fr;
+      margin-top: 1rem;
+    }
+
+    .section-card {
+      background: white;
+      padding: 1.2rem;
+      border-radius: 12px;
+      margin-bottom: 2rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .card {
+      display: flex;
+      align-items: center;
+      background: #ffffff;
+      color: #333;
+      border-radius: 10px;
+      padding: 1rem;
+      box-shadow: 0 6px 10px rgba(0, 0, 0, 0.08);
+      transition: transform 0.2s ease-in-out;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+    }
+
+    .card img {
+      width: 40px;
+      height: 40px;
+      margin-right: 1rem;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 2rem;
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    .tooltip {
+      position: relative;
+      display: inline-block;
+    }
+
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: max-content;
+      background: #333;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 500;
+      text-align: center;
+      border-radius: 8px;
+      padding: 8px 12px;
+      position: absolute;
+      z-index: 1;
+      top: 120%;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: all 0.3s ease-in-out;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+      top: 135%;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="navbar-placeholder"></div>
+  <script>
+    fetch('navbar.html')
+      .then(res => res.text())
+      .then(data => {
+        document.getElementById('navbar-placeholder').innerHTML = data;
+      });
+  </script>
+
+  <div style="display: flex; justify-content: flex-end; padding: 1rem 4rem 0 0;">
+    <div class="tooltip">
+      <button id="settingsBtn" style="background: none; border: none; cursor: pointer;">
+        <img src="../images/settings.png" alt="Settings" style="width: 40px; height: 40px;">
+      </button>
+      <span class="tooltiptext">Edit Distance Threshold</span>
+    </div>
+  </div>
+
+  <div class="container" id="dashboard">
+    <div class="header">
+      <img src="../images/logo.png" alt="system icon">
+      <h1>Welcome to Smart Wild Animal Repellent System</h1>
+    </div>
+
+    <h2>Sensor Readings</h2>
+    <div class="section-card">
+      <div class="grid">
+        <div class="card"><img src="../images/temp.png">
+          <div>Temperature: <strong id="temp">--</strong> °C</div>
+        </div>
+        <div class="card"><img src="../images/humidity.png">
+          <div>Humidity: <strong id="humidity">--</strong> %</div>
+        </div>
+        <div class="card"><img src="../images/motion.png">
+          <div>Motion Detected: <strong id="motion">--</strong></div>
+        </div>
+        <div class="card"><img src="../images/distance.png">
+          <div>Distance: <strong id="distance">--</strong> cm</div>
+        </div>
+        <div class="card"><img src="../images/vibration.png">
+          <div>Vibration Detected: <strong id="vibration">--</strong></div>
+        </div>
+        <div class="card"><img src="../images/duration.png">
+          <div>Vibration Duration: <strong id="duration">--</strong> seconds</div>
+        </div>
+        <div class="card"><img src="../images/relay.png">
+          <div>Alarm: <strong id="relay">--</strong></div>
+        </div>
+        <div class="card"><img src="../images/status.png">
+          <div>Status: <strong id="status">--</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <h2>System Info</h2>
+    <div class="section-card">
+      <div class="grid">
+        <div class="card"><img src="../images/clock.png">
+          <div>Last Updated: <strong id="timestamp">--</strong></div>
+        </div>
+        <div class="card"><img src="../images/mode.png">
+          <div>Mode: <strong id="modeStatus">--</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      &copy; 2025 Smart Animal Repellent System
+    </div>
+  </div>
+
+  <script>
+
+    const db = firebase.database();
+    const ref = db.ref("/wildRepellentSystem");
+
+    ref.on("value", (snapshot) => {
+      const data = snapshot.val();
+      document.getElementById("temp").textContent = data.temperature ?? '--';
+      document.getElementById("humidity").textContent = data.humidity ?? '--';
+      document.getElementById("distance").textContent = data.distance ?? '--';
+      document.getElementById("motion").textContent = data.motion ? 'Yes' : 'No';
+      document.getElementById("vibration").textContent = data.vibration ? 'Yes' : 'No';
+      document.getElementById("relay").textContent = data.relay ? 'ON' : 'OFF';
+      document.getElementById("timestamp").textContent = data.timestamp ?? '--';
+      document.getElementById("modeStatus").textContent = data.manualMode ? 'Manual' : 'Auto';
+      document.getElementById("status").textContent = data.status ?? '--';
+      document.getElementById("duration").textContent = data.vibrationDuration ?? '--';
+    });
+
+    function logout() {
+      firebase.auth().signOut().then(() => {
+        window.location.href = "login.html";
+      }).catch((error) => {
+        alert("Logout failed: " + error.message);
+      });
+    }
+  </script>
+
+  <!-- Settings Dialog -->
+  <div id="settingsDialog" style="display:none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); z-index: 1000;
+      width: 400px; max-width: 95%; font-family: 'Segoe UI', sans-serif;">
+    <h3 style="margin-top: 0; margin-bottom: 20px; font-size: 1.2rem; font-weight: bold; color: #333;">
+      Update Distance Threshold
+    </h3>
+    <label for="distanceInput" style="display: block; margin-bottom: 10px; color: #444; font-weight: 500;">
+      Threshold (cm):
+    </label>
+    <input type="number" id="distanceInput" min="10" max="300" required style="width: 90%; margin: 0 auto 20px auto; display: block;
+  padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 1rem;">
+
+    <input type="range" id="thresholdSlider" min="10" max="300" step="1" style="width: 100%; margin-bottom: 15px;">
+    <div style="text-align: right;">
+      <button onclick="closeDialog()" style="background: #eee; border: none; padding: 8px 16px;
+          border-radius: 6px; margin-right: 10px; font-weight: 500; cursor: pointer;">Cancel</button>
+      <button onclick="confirmUpdate()"
+        style="background: linear-gradient(to right,  #c400ff, #ff0080);
+          color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 500; cursor: pointer;">Update</button>
+    </div>
+  </div>
+
+
+  <!-- Confirmation -->
+  <div id="confirmOverlay"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index: 999;"
+    onclick="closeDialog()"></div>
+
+  <script>
+    const settingsBtn = document.getElementById("settingsBtn");
+    const dialog = document.getElementById("settingsDialog");
+    const overlay = document.getElementById("confirmOverlay");
+    const distanceInput = document.getElementById("distanceInput");
+    const thresholdSlider = document.getElementById("thresholdSlider");
+
+    settingsBtn.addEventListener("click", () => {
+      firebase.database().ref("/wildRepellentSystem/distanceThreshold").once("value").then(snapshot => {
+        const value = snapshot.val() ?? 0;
+        distanceInput.value = value;
+        thresholdSlider.value = value;
+      });
+
+      dialog.style.display = "block";
+      overlay.style.display = "block";
+    });
+
+    function closeDialog() {
+      dialog.style.display = "none";
+      overlay.style.display = "none";
+    }
+
+    function confirmUpdate() {
+      const newThreshold = parseFloat(distanceInput.value);
+
+      // Check if it's a number and in range
+      if (isNaN(newThreshold) || newThreshold < 10 || newThreshold > 300) {
+        alert("Please enter a valid number between 10 and 300.");
+        return;
+      }
+
+      const confirmed = confirm(`Are you sure you want to update the distance threshold to ${newThreshold} cm?`);
+      if (confirmed) {
+        firebase.database().ref("/wildRepellentSystem/distanceThreshold").set(newThreshold)
+          .then(() => {
+            alert("Threshold updated successfully.");
+            closeDialog();
+          })
+          .catch(err => {
+            alert("Failed to update threshold: " + err.message);
+          });
+      }
+    }
+
+    distanceInput.addEventListener('wheel', function (e) {
+      e.preventDefault();
+    });
+
+    distanceInput.addEventListener("input", () => {
+      thresholdSlider.value = distanceInput.value;
+    });
+
+    thresholdSlider.addEventListener("input", () => {
+      distanceInput.value = thresholdSlider.value;
+    });
+  </script>
+
+</body>
+
+</html>

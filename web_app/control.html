@@ -17,34 +17,6 @@
             color: #333;
         }
 
-        nav {
-            background: linear-gradient(to right, #6a00f4, #c400ff, #ff0080, #ff8c00, #ffe600);
-            padding: 0.1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            color: white;
-        }
-
-        nav a {
-            color: white;
-            text-decoration: none;
-            margin-left: 1rem;
-            font-weight: bold;
-        }
-
-        .logout-button {
-            background: transparent;
-            border: 1px solid white;
-            border-radius: 6px;
-            padding: 0.4rem 0.8rem;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 0.9rem;
-            white-space: nowrap;
-        }
-
         .container {
             max-width: 600px;
             margin: 2rem auto;
@@ -106,14 +78,15 @@
 </head>
 
 <body>
-    <nav>
-        <div style="font-weight: bold;">Smart Repellent System</div>
-        <div style="display: flex; align-items: center; gap: 1rem; white-space: nowrap;">
-            <a href="dashboard.html">Dashboard</a>
-            <a href="control.html">Control Panel</a>
-            <button class="logout-button" onclick="logout()">Logout</button>
-        </div>
-    </nav>
+    <div id="navbar-placeholder"></div>
+    <script>
+        fetch('navbar.html')
+            .then(res => res.text())
+            .then(data => {
+                document.getElementById('navbar-placeholder').innerHTML = data;
+            });
+    </script>
+
 
     <div class="container">
         <h1>Relay Mode Control</h1>

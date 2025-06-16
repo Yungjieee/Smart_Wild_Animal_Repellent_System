@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sensor Trends</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js">function updateChartRange(range) {
+            // Placeholder: Replace with logic to fetch different range data
+            alert('You selected: ' + range + ' (hook this to filtered fetchData logic)');
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        .gradient-title {
+            text-align: center;
+            margin: 30px 0 10px;
+            background: linear-gradient(to right, #6a00f4, #c400ff, #ff0080, #ff8c00, #ffe600);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .chart-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            padding: 0 20px;
+        }
+
+        .chart-container {
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 400px;
+            max-width: 48%;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="navbar-placeholder"></div>
+    <script>
+        fetch('navbar.html')
+            .then(response => response.text())
+            .then(data => document.getElementById('navbar-placeholder').innerHTML = data);
+    </script>
+
+    <h2 class="gradient-title">Sensor Data Trends</h2>
+    <div style="display: flex; justify-content: flex-end; padding: 0 40px 10px;">
+        <select id="rangeSelector" onchange="updateChartRange(this.value)"
+            style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.1);">
+            <option value="daily">📅 Daily</option>
+            <option value="weekly">📈 Weekly</option>
+            <option value="monthly">🗓️ Monthly</option>
+        </select>
+    </div>
+    <div class="chart-row" style="gap: 30px;">
+        <div class="chart-container">
+            <h3>Relay Status Over Time (Animal Detection)</h3>
+            <canvas id="relayChart"></canvas>
+        </div>
+        <div class="chart-container">
+            <h3>Temperature & Humidity Trends</h3>
+            <canvas id="envChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        async function fetchData(range = 'daily') {
+            const response = await fetch(`get_data.php?range=${range}`);
+            const data = await response.json();
+            return data;
+        }
+
+        function updateCharts(data) {
+            const timestamps = data.map(entry => entry.timestamp);
+            const relay = data.map(entry => entry.relay_status);
+            const temp = data.map(entry => entry.temperature);
+            const hum = data.map(entry => entry.humidity);
+
+            if (window.relayChartObj) window.relayChartObj.destroy();
+            if (window.envChartObj) window.envChartObj.destroy();
+
+            const commonOptions = {
+                elements: {
+                    line: { borderWidth: 3 },
+                    point: { radius: 5, backgroundColor: 'white', borderWidth: 2 }
+                },
+                plugins: {
+                    legend: { display: true },
+                    tooltip: { enabled: true }
+                },
+                scales: {
+                    x: {
+                        ticks: { autoSkip: true, maxTicksLimit: 15 },
+                        title: { display: true, text: 'Timestamp' }
+                    },
+                    y: { beginAtZero: true }
+                }
+            };
+
+            window.relayChartObj = new Chart(document.getElementById('relayChart'), {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [{
+                        label: 'Relay (Animal Detected)',
+                        data: relay,
+                        borderColor: '#ff3c3c',
+                        backgroundColor: 'rgba(255,60,60,0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        ...commonOptions.scales,
+                        y: {
+                            ...commonOptions.scales.y,
+                            min: 0,
+                            max: 1,
+                            title: { display: true, text: 'Relay Status (0 = Off, 1 = On)' }
+                        }
+                    }
+                }
+            });
+
+            window.envChartObj = new Chart(document.getElementById('envChart'), {
+                type: 'line',
+                data: {
+                    labels: timestamps,
+                    datasets: [
+                        {
+                            label: 'Temperature (°C)',
+                            data: temp,
+                            borderColor: '#007bff',
+                            backgroundColor: 'rgba(0,123,255,0.1)',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Humidity (%)',
+                            data: hum,
+                            borderColor: '#28a745',
+                            backgroundColor: 'rgba(40,167,69,0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: commonOptions
+            });
+        }
+
+        function updateChartRange(range) {
+            fetchData(range).then(updateCharts);
+        }
+
+        // Load daily by default
+        fetchData().then(updateCharts);
+    </script>
+
+</body>
+
+</html>
