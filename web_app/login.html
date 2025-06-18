@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -15,8 +16,13 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      padding: 2rem;
+      /* ⬅️ Add top-bottom breathing space */
+      min-height: 100vh;
+      /* ⬅️ Use min-height instead of fixed 100vh */
+      box-sizing: border-box;
     }
+
     .login-box {
       background: white;
       border-radius: 12px;
@@ -27,18 +33,22 @@
       box-sizing: border-box;
       text-align: center;
     }
+
     .login-box img {
       width: 230px;
       height: auto;
       margin-bottom: 1rem;
     }
+
     h2 {
       background: linear-gradient(to right, #6a00f4, #c400ff, #ff0080, #ff8c00, #ffe600);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 1.5rem;
     }
-    input[type="email"], input[type="password"] {
+
+    input[type="email"],
+    input[type="password"] {
       width: 100%;
       padding: 0.8rem;
       margin: 0.5rem 0;
@@ -47,10 +57,12 @@
       font-size: 1rem;
       box-sizing: border-box;
     }
+
     .password-wrapper {
       position: relative;
       margin: 0.5rem 0;
     }
+
     .password-wrapper input {
       width: 100%;
       padding: 0.8rem;
@@ -60,6 +72,7 @@
       font-size: 1rem;
       box-sizing: border-box;
     }
+
     .toggle-password {
       position: absolute;
       top: 50%;
@@ -70,6 +83,7 @@
       color: #888;
       user-select: none;
     }
+
     .remember {
       display: flex;
       align-items: center;
@@ -77,9 +91,11 @@
       font-size: 0.9rem;
       margin-top: 0.5rem;
     }
+
     .remember input {
       margin-right: 0.5rem;
     }
+
     button {
       width: 100%;
       padding: 0.8rem;
@@ -91,27 +107,32 @@
       font-size: 1rem;
       cursor: pointer;
     }
+
     .error {
       color: red;
       font-size: 0.9rem;
       text-align: center;
       margin-top: 0.5rem;
     }
+
     .footer {
       text-align: center;
       font-size: 0.85rem;
       margin-top: 1.5rem;
     }
+
     .footer a {
       color: #6a00f4;
       text-decoration: none;
     }
   </style>
 </head>
+
 <body>
   <div class="login-box">
+    <h2>Login</h2>
     <img src="images/login.png" alt="Login Icon">
-    <h2>Login to Smart System</h2>
+    <h2>Smart Wild Animal Repellent System</h2>
     <input type="email" id="email" placeholder="Email">
     <div class="password-wrapper">
       <input type="password" id="password" placeholder="Password">
@@ -160,4 +181,5 @@
     }
   </script>
 </body>
+
 </html>
