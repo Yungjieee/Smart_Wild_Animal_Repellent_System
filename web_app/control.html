@@ -122,14 +122,6 @@
             document.getElementById("manualControls").style.display = isManual ? "block" : "none";
         }
 
-        function logout() {
-            firebase.auth().signOut().then(() => {
-                window.location.href = "login.html";
-            }).catch((error) => {
-                alert("Logout failed: " + error.message);
-            });
-        }
-
         ref.on("value", (snapshot) => {
             const data = snapshot.val();
             const relay = data.relay ? "ON" : "OFF";
